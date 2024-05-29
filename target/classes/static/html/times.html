@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <title>Times</title>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="https://unpkg.com/sakura.css/css/sakura.css" type="text/css">
+    </head>
+
+    <body>
+        <h1>Gerenciamento de Times</h1>
+
+        <table>    
+            <tr> <td>ID:</td> <td><input type="text" id="txtId"></td> </tr>
+            <tr> <td>Nome:</td> <td><input type="text" id="txtNome"></td> </tr>
+            <tr> <td>Conferência:</td> <td><input type="text" id="txtConferencia"></td> </tr>
+            <tr> <td>Títulos:</td> <td><input type="text" id="txtTitulos"></td> </tr>
+            <tr><td></td><td>
+                <input type="button" value="Novo" onclick="novoTime()" id="btnNovo">
+                <input type="button" value="Salvar" onclick="salvarTime()" id="btnSalvar">
+                <input type="button" value="Apagar" onclick="apagarTime()" id="btnApagar">
+                <input type="button" value="Cancelar" onclick="cancelarEdicao()" id="btnCancelar">
+            </td></tr>
+        </table> 
+
+        <p style="font-weight:bold" id="paragrafoMensagem"></p>
+
+        <table>    
+            <tr><th>ID</th><th>Nome</th><th>Conferência</th><th>Títulos</th></tr>
+            <tbody id="corpoTabelaTimes"> </tbody>
+        </table>
+
+
+        <script>
+
+            var token = localStorage.getItem('token');
+            if (!token) {
+                window.location.replace("/html/login.html");
+            }
+            const corpoTabela = document.querySelector('#corpoTabelaTimes');
+            const paragrafoMensagem = document.querySelector('#paragrafoMensagem');
+            const txtNome = document.querySelector('#txtNome');
+            const txtConferencia = document.querySelector('#txtConferencia');
+            const txtTitulos = document.querySelector('#txtTitulos');
+            const txtId = document.querySelector('#txtId');
+
+            const btnNovo = document.querySelector('#btnNovo');
+            const btnSalvar = document.querySelector('#btnSalvar');
+            const btnApagar = document.querySelector('#btnApagar');
+            const btnCancelar = document.querySelector('#btnCancelar');
+            var criandoNovoTime = false;
+
+            inicializar();
+
+            function inicializar() {
+                criandoNovoTime = false;
+                paragrafoMensagem.innerHTML = 'Pressione o botão Novo ou selecione uma faculdade da lista:'
+                txtNome.value = '';
+                txtConferencia.value = '';
+                txtTitulos.value = '';
+                txtId.value = '';
+
+                txtNome.disabled = true;
+                txtConferencia.disabled = true;
+                txtTitulos.disabled = true;
+                txtId.disabled = true;
+
+                btnNovo.disabled = false;
+                btnSalvar.disabled = true;
+                btnApagar.disabled = true;
+                btnCancelar.disabled = true;
+                listarTodosTimes();            
+            }
+
+async function listarTodosTimes() {
+    fetch('/api/times' ,{
+        method: 'GET',
+        headers: {'Authorization': 'Bearer ' + token }
+    })
+    .then(resposta => { if (!resposta.ok) throw Error(resposta.status); return resposta; } )
+    .then(resposta => resposta.json())
+    .then(json => preencherTabela(json))
+    .catch(function(error) {
+        paragrafo.innerHTML = "Erro ao listar times (código " + error.message + ")";
+    });
+}
+
+function preencherTabela(times) {
+    var linhasTabela = '';
+    var n = times.length;
+    for (var i=0; i<n; i++) {
+        var t = times[i];
+        linhasTabela += 
+                    `<tr><td><a href="javascript:void(0)" onclick="selecionarTime('${t.id}','${t.nome}','${t.conferencia}','${t.titulos}')">` 
+                    + t.id     + '</a></td>' + 
+                    '<td>' + t.nome   + '</td>' +
+                    '<td>' + t.conferencia + '</td>' +
+                    '<td>' + t.titulos + '</td></tr>\n';
+            }
+            corpoTabela.innerHTML = linhasTabela;
+    }
+
+            function novoTime() {
+                paragrafoMensagem.innerHTML = 'Preencha os dados do novo time...';
+                criandoNovoTime = true;
+
+                txtId.value = '';
+                txtNome.value = '';
+                txtConferencia.value = '';
+                txtTitulos.value = '';
+
+                txtId.disabled = true;
+                txtNome.disabled = false;
+                txtConferencia.disabled = false;
+                txtTitulos.disabled = false;
+
+                btnNovo.disabled = true;
+                btnSalvar.disabled = false;
+                btnApagar.disabled = true;
+                btnCancelar.disabled = false;
+            }
+
+async function salvarTime() {
+    if (criandoNovoTime) {
+        fetch('/api/times', {
+            method: 'POST',
+            body: JSON.stringify({
+                'nome': txtNome.value,
+                'conferencia': txtConferencia.value,
+                'titulos': txtTitulos.value    
+            }),
+            headers: {
+                'Content-type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(resposta => { if (!resposta.ok) throw Error(resposta.status); return resposta; } )
+        .then(resposta => resposta.json())
+        .then(json => inicializar())
+        .catch(function(error) {
+            paragrafo.innerHTML = "Erro ao criar time (código " + error.message + ")";
+        });  
+    }
+    else {
+        fetch('/api/times/' + txtId.value, {
+            method: 'PUT',
+            body: JSON.stringify({
+                'id': txtId.value,
+                'nome': txtNome.value,
+                'conferencia': txtConferencia.value,
+                'titulos': txtTitulos.value    
+            }),
+            headers: {
+                'Content-type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            }
+        })
+        .then(resposta => { if (!resposta.ok) throw Error(resposta.status); return resposta; } )
+        .then(resposta => resposta.json())
+        .then(json => inicializar())
+        .catch(function(error) {
+            paragrafo.innerHTML = "Erro ao alterar times (código " + error.message + ")";
+        });         
+    }  
+}
+
+function cancelarEdicao() {
+    inicializar();
+}
+
+function selecionarTime(id, nome, conferencia, titulos) {
+    paragrafoMensagem.innerHTML = 'Altere e salve os dados do time, ou então apague o registro do time.'
+    txtId.value = id;
+    txtNome.value = nome;
+    txtConferencia.value = conferencia;
+    txtTitulos.value = titulos;
+
+    txtId.disabled = true;
+    txtNome.disabled = false;
+    txtConferencia.disabled = false;
+    txtTitulos.disabled = false;
+
+    btnNovo.disabled = true;
+    btnSalvar.disabled = false;
+    btnApagar.disabled = false;
+    btnCancelar.disabled = false;  
+}
+
+async function apagarTime() {
+    fetch('/api/times/' + txtId.value, {
+        method: 'DELETE',
+        headers: {'Authorization': 'Bearer ' + token }
+    })
+    .then(resposta => { if (!resposta.ok) throw Error(resposta.status); return resposta; } )
+    .then(resposta => inicializar())
+    .catch(function(error) {
+        paragrafo.innerHTML = "Erro ao apagar time (código " + error.message + ")";
+    });
+}
+
+function logout() {
+    localStorage.removeItem('token');
+    window.location.replace("/html/login.html");
+}
+
+        </script>
+    </body>
+</html>	        
